@@ -1,0 +1,168 @@
+import pygame
+import pyautogui
+import time
+from collections import defaultdict
+
+# ================= CONFIG =================
+DEADZONE = 0.08
+LOOP_DELAY_MS = 16          # ~60 Hz
+MOUSE_SPEED_LEFT = 18       # base multiplier
+MOUSE_SPEED_RIGHT = 9
+TRIGGER_SPEED_BOOST = 80    # LT → faster cursor when held
+TYPE_INTERVAL_BASE = 0.08
+
+# Which button indices do what (Xbox layout reference)
+# You may need to adjust these numbers depending on OS/driver
+BUTTON_A       = 0
+BUTTON_B       = 1
+BUTTON_X       = 2
+BUTTON_Y       = 3
+BUTTON_LB      = 4      # often 4 or 9 — check your controller
+BUTTON_RB      = 5
+BUTTON_BACK    = 6
+BUTTON_START   = 7
+BUTTON_LSTICK  = 8
+BUTTON_RSTICK  = 9
+BUTTON_GUIDE   = 10     # sometimes not reported
+
+AXIS_LX     = 0
+AXIS_LY     = 1
+AXIS_RX     = 2
+AXIS_RY     = 3
+AXIS_LT     = 4         # often 2 or 4
+AXIS_RT     = 5         # often 5
+
+DPAD_UP     = 11        # sometimes these are hats instead
+DPAD_DOWN   = 12
+DPAD_LEFT   = 13
+DPAD_RIGHT  = 14
+# ===========================================
+
+def main():
+    pygame.init()
+    pygame.joystick.init()
+
+    if pygame.joystick.get_count() == 0:
+        print("No joystick detected. Connect Xbox controller and try again.")
+        return
+
+    joy = pygame.joystick.Joystick(0)
+    joy.init()
+
+    print(f"Controller: {joy.get_name()}")
+    print(f"Buttons: {joy.get_numbuttons()}")
+    print(f"Axes:    {joy.get_numaxes()}")
+    print(f"Hats:    {joy.get_numhats()}")
+    print("-" * 50)
+    print("Ctrl+C or press Left Stick button to quit\n")
+
+    # State tracking for edge detection (was pressed → is pressed)
+    prev_buttons = defaultdict(bool)
+
+    # For detecting button release (e.g. RSTICK → mouse up)
+    mouse_left_held = False
+
+    pyautogui.FAILSAFE = False          # optional - disable corner fail-safe
+    pyautogui.PAUSE = 0.0               # remove artificial delay
+
+    try:
+        clock = pygame.time.Clock()
+
+        while True:
+            pygame.event.pump()
+
+            # ─── Read all inputs ───────────────────────────────────────
+            lx = joy.get_axis(AXIS_LX)
+            ly = joy.get_axis(AXIS_LY)
+            rx = joy.get_axis(AXIS_RX)
+            ry = joy.get_axis(AXIS_RY)
+
+            lt = max(0, joy.get_axis(AXIS_LT))   # 0..1
+            rt = max(0, joy.get_axis(AXIS_RT))
+
+            # Buttons (bool)
+            buttons = {
+                'A':     joy.get_button(BUTTON_A),
+                'B':     joy.get_button(BUTTON_B),
+                'X':     joy.get_button(BUTTON_X),
+                'Y':     joy.get_button(BUTTON_Y),
+                'LB':    joy.get_button(BUTTON_LB),
+                'RB':    joy.get_button(BUTTON_RB),
+                'BACK':  joy.get_button(BUTTON_BACK),
+                'START': joy.get_button(BUTTON_START),
+                'LSTICK':joy.get_button(BUTTON_LSTICK),
+                'RSTICK':joy.get_button(BUTTON_RSTICK),
+                'GUIDE': joy.get_button(BUTTON_GUIDE),
+                # D-pad (may need to use hat(0) instead on some systems)
+                'UP':    joy.get_button(DPAD_UP),
+                'DOWN':  joy.get_button(DPAD_DOWN),
+                'LEFT':  joy.get_button(DPAD_LEFT),
+                'RIGHT': joy.get_button(DPAD_RIGHT),
+            }
+
+            # ─── Actions ───────────────────────────────────────────────
+
+            # Left stick → mouse movement + LT speed boost
+            if abs(lx) > DEADZONE or abs(ly) > DEADZONE:
+                speed = MOUSE_SPEED_LEFT * (1 + lt * TRIGGER_SPEED_BOOST)
+                mx = lx * speed
+                my = ly * speed * 1.1     # often y feels slower — adjust if needed
+                pyautogui.moveRel(round(mx), round(my), duration=0)
+
+            # Right stick → slower precise movement
+            if abs(rx) > DEADZONE or abs(ry) > DEADZONE:
+                pyautogui.moveRel(
+                    round(rx * MOUSE_SPEED_RIGHT),
+                    round(ry * MOUSE_SPEED_RIGHT),
+                    duration=0
+                )
+
+            # Right stick button → hold left mouse
+            if buttons['RSTICK'] and not prev_buttons['RSTICK']:
+                if not mouse_left_held:
+                    pyautogui.mouseDown(button='left')
+                    mouse_left_held = True
+            elif not buttons['RSTICK'] and prev_buttons['RSTICK']:
+                if mouse_left_held:
+                    pyautogui.mouseUp(button='left')
+                    mouse_left_held = False
+
+            # Y button → type "hello!!" with variable speed
+            if buttons['Y'] and not prev_buttons['Y']:
+                interval = TYPE_INTERVAL_BASE * (2 - lt)  # LT makes it faster
+                pyautogui.write('hello!!', interval=interval)
+
+            # Example one-shot actions (press only)
+            if buttons['A'] and not prev_buttons['A']:
+                print("A pressed")
+            if buttons['B'] and not prev_buttons['B']:
+                print("B pressed")
+            if buttons['X'] and not prev_buttons['X']:
+                print("X pressed")
+            if buttons['LB'] and not prev_buttons['LB']:
+                print("LB pressed")
+            if buttons['RB'] and not prev_buttons['RB']:
+                print("RB pressed")
+
+            # Quit conditions
+            if buttons['LSTICK'] and not prev_buttons['LSTICK']:
+                print("Left stick button → quitting")
+                break
+
+            # Update previous state
+            prev_buttons.update(buttons)
+
+            clock.tick(1000 // LOOP_DELAY_MS)
+
+    except KeyboardInterrupt:
+        print("\nInterrupted by user")
+
+    finally:
+        if mouse_left_held:
+            pyautogui.mouseUp(button='left')
+        joy.quit()
+        pygame.quit()
+        print("Clean exit")
+
+if __name__ == "__main__":
+    main()
