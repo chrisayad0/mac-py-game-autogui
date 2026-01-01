@@ -1,0 +1,116 @@
+import pygame
+import pyautogui
+import time  # Optional: add delay if needed
+
+# Initialize pygame and joystick module
+pygame.init()
+pygame.joystick.init()
+
+# Assume one Xbox controller is connected (index 0)
+if pygame.joystick.get_count() == 0:
+    raise SystemExit("No controller detected. Connect your Xbox controller (Bluetooth or USB) and try again.")
+
+controller = pygame.joystick.Joystick(0)
+controller.init()
+
+print(f"Detected: {controller.get_name()}")
+print(f"Number of hats: {controller.get_numhats()}")  # Likely 1 or 0 - check output
+
+
+
+print("Ready - press Ctrl+C or LeftStick to quit")
+
+
+
+
+# Main loop
+try:
+    while True:
+        pygame.event.pump()
+
+        # Left stick
+        left_x = controller.get_axis(0)
+        left_y = controller.get_axis(1)
+
+        # Right stick (test axes 2/3 or 3/4 - common variation on macOS)
+        right_x = controller.get_axis(2)
+        right_y = controller.get_axis(3)  # Try 4 if this is always ~0
+
+        # Triggers (often axis 2 and 3, or sometimes 4/5; values -1 to +1 or 0 to +1)
+        lt = max(0, controller.get_axis(4))  # Adjust indices as needed
+        rt = max(0, controller.get_axis(5))
+
+        # Buttons
+        a  = controller.get_button(0)
+        b  = controller.get_button(1)
+        x  = controller.get_button(2)
+        y  = controller.get_button(3)
+        boxs = controller.get_button(4)
+        lb = controller.get_button(9)
+        rb = controller.get_button(10)
+        dpad_up    = controller.get_button(11)  # or test 11-14
+        dpad_down  = controller.get_button(12)
+        dpad_left  = controller.get_button(13)
+        dpad_right = controller.get_button(14)
+        menu   = controller.get_button(6)
+        start  = controller.get_button(15)
+        guide  = controller.get_button(5)  # May not always register
+        l_stick = controller.get_button(7)
+        r_stick = controller.get_button(8)
+
+        # Example output (replace with your logic)
+        if abs(left_x) > 0.1 or abs(left_y) > 0.1:
+            #print(f"Left stick: ({left_x:.2f}, {left_y:.2f})")
+            #print("moving the mouse with acceleration")
+            n = 5 + (lt * 100)
+            pyautogui.moveRel(left_x * n * 20, left_y * n * 5, duration=0.01)
+
+        if abs(right_x) > 0.1 or abs(right_y) > 0.1:
+            print(f"Right stick: ({right_x:.2f}, {right_y:.2f})")
+            print("moving the mouse")
+            pyautogui.moveRel(right_x * 10, right_y * 10, duration=0.01)
+        if lt > 0.1 or rt > 0.1:
+            print(f"Triggers: LT={lt:.2f}, RT={rt:.2f}")
+        if dpad_up: print("D-pad Up pressed")
+        if dpad_down: print("D-pad Down pressed")
+        if dpad_left: print("D-pad Left pressed")
+        if dpad_right: print("D-pad Right pressed")
+        if a: print("A pressed")
+        if b: print("B pressed")
+        if x: print("X pressed")
+        if y: 
+            print("Y pressed")
+            #time.sleep(.2)  # Gives you time to switch to the target window/app
+            #pyautogui.hotkey('control', 'f5')
+            pyautogui.write('hello!!', interval=lt)
+        if boxs: print("squares button pressed")
+        if lb: print("LB pressed")
+        if rb: print("RB pressed")
+        if menu: print("menu pressed")
+        if start: print("Start pressed")
+        if guide: print("Guide pressed")
+        if l_stick: 
+            print("Left stick pressed")
+            #controller.quit()
+            pygame.quit()
+        if r_stick: 
+            print("Right stick pressed")
+            print("holding down mouse left click")
+            pyautogui.mouseDown(button='left')
+
+            while r_stick:
+                pygame.event.pump()
+                r_stick = controller.get_button(8)
+                pygame.time.delay(50)
+            print("releasing mouse left click")
+            pyautogui.mouseUp(button='left')
+
+        # Add more as needed...
+
+        pygame.time.delay(50)
+
+except KeyboardInterrupt:
+    print("\nQuitting...")
+finally:
+    #controller.quit()
+    pygame.quit()
